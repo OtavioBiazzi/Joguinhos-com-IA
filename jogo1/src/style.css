@@ -1,0 +1,129 @@
+:root {
+  --bg1: #09151f;
+  --bg2: #183247;
+  --ink: #f0f5f8;
+  --accent: #f8b84e;
+  --danger: #ff5e5b;
+  --ok: #7cf29a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at 20% 20%, #254a68 0%, var(--bg1) 40%, #05090e 100%);
+  color: var(--ink);
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+}
+
+#app {
+  width: min(1280px, 100vw);
+  margin: 0 auto;
+  min-height: 100vh;
+  position: relative;
+  padding: 12px;
+}
+
+.hud {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 10px;
+  background: linear-gradient(90deg, #0e1f2c 0%, #123049 100%);
+  border: 1px solid #385672;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+#game {
+  width: 100%;
+  height: auto;
+  border: 1px solid #385672;
+  border-radius: 12px;
+  background: #0a1420;
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.35);
+}
+
+.panel {
+  margin-top: 10px;
+  min-height: 140px;
+  padding: 10px;
+  border: 1px solid #385672;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #101f2d 0%, #0d1520 100%);
+  font-size: 14px;
+}
+
+.overlay {
+  position: absolute;
+  inset: 12px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  text-align: left;
+  background: rgba(3, 10, 16, 0.88);
+  border-radius: 12px;
+  border: 1px solid #3a4d63;
+}
+
+.overlay.show {
+  display: flex;
+}
+
+.card {
+  width: min(900px, 95%);
+  border: 1px solid #445d7a;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #152738 0%, #0d1a27 100%);
+  padding: 16px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+button {
+  border: 1px solid #54789b;
+  border-radius: 8px;
+  background: #123353;
+  color: var(--ink);
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #184570;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #4f6b84;
+}
+
+.stat-danger {
+  color: var(--danger);
+}
+
+.stat-ok {
+  color: var(--ok);
+}
+
+@media (max-width: 768px) {
+  #app {
+    padding: 8px;
+  }
+
+  .hud {
+    flex-wrap: wrap;
+    height: auto;
+  }
+}
