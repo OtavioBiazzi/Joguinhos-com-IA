@@ -6,13 +6,17 @@ This folder contains a playable prototype inspired by the game design document f
 
 - Top-down real-time action loop
 - Hub (NEXMIND Clinic) with patient selection
-- Procedural-ish room combat across 4 layers
+- Seeded dungeon generation across 4 layers
+- Special room types (memory, choice, merchant, challenge, corrupted, shortcut)
 - Memory fragments (active and passive build system)
+- Fragment synergy system
 - Relics with run modifiers
 - Morality choices affecting outcomes
+- Enemy archetypes (Echo, Guardian, Ego Shadow, Deleted Archive)
 - Sanity system with mental collapse pressure
 - Boss resolution via dialog choice (pacify vs extraction)
 - Permanent progression between runs (Echoes + upgrades)
+- Accessibility settings (speed, difficulty presets, colorblind palettes)
 
 ## Run It
 
@@ -33,6 +37,15 @@ Option 2 (Python):
 - Active ability slot 1: Q
 - Active ability slot 2: E
 - Fragment choice overlay: keys 1, 2, 3
+
+## New Systems In This Build
+
+- Shareable seeds: enter a seed in the Hub before selecting a patient
+- The Archivist merchant room: buy/sacrifice for build shaping
+- Challenge rooms with multiple combat waves
+- Corrupted rooms with extra sanity pressure
+- Shortcut portals to skip layers with reward tradeoff
+- Narrative / Normal / Abyss difficulty scaling
 
 ## Project Layout
 
