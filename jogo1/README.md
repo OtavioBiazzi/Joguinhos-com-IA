@@ -21,6 +21,8 @@ This folder contains a playable prototype inspired by the game design document f
 - Optional Arquivo Corrompido mode with layer mutators
 - Accessibility settings (speed, difficulty presets, colorblind palettes)
 - Per-patient ending classification based on moral axes
+- Story act progression in clinic hub (Act 1 -> 2 -> 3)
+- New Game+ run mode with meta progression
 
 ## Run It
 
@@ -52,6 +54,7 @@ Option 2 (Python):
 - Narrative / Normal / Abyss difficulty scaling
 - Clinic NPC conversations (Lyra, Ordan, Mira)
 - Corrupted mutators per layer (Frenzy, Brittle, Static, Blackout)
+- New Game+ unlock tied to clinic resonance
 
 ## Project Layout
 

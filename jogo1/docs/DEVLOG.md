@@ -62,3 +62,17 @@ Implemented:
 	- Brittle Mind (higher contact damage)
 	- Static Noise (extra sanity drain)
 	- Blackout (visibility disturbance)
+
+## 2026-04-19 - New Game+ and Story Acts
+
+Implemented:
+- Story act tracker in clinic hub:
+	- Act 1: Employee
+	- Act 2: Investigator
+	- Act 3: Renegade or Accomplice
+- New Game+ mode unlocked at high resonance
+- NG+ run modifiers:
+	- stronger baseline scaling on all difficulties
+	- starts with one passive fragment
+	- increased reward scaling
+- NG+ win counter persisted in meta progression
