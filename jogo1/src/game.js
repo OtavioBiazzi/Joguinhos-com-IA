@@ -39,11 +39,16 @@ const baseSave = {
     resonance: 0,
     npcTrust: { lyra: 0, ordan: 0, mira: 0 },
   },
+  progression: {
+    ngPlusLevel: 0,
+    ngPlusWins: 0,
+  },
   settings: {
     speed: 1,
     difficulty: "normal",
     colorMode: "default",
     corruptedMode: false,
+    runMode: "standard",
   },
 };
 
@@ -83,6 +88,7 @@ const state = {
     awaitingRoomResolution: false,
     skipRewardsThisRoom: false,
     challengeWavesLeft: 0,
+    ngPlus: false,
   },
   morality: {
     empathy: 0,
@@ -117,6 +123,7 @@ function loadSave() {
       ...baseSave,
       ...parsed,
       upgrades: { ...baseSave.upgrades, ...(parsed.upgrades || {}) },
+      progression: { ...baseSave.progression, ...(parsed.progression || {}) },
       clinic: {
         ...baseSave.clinic,
         ...(parsed.clinic || {}),
@@ -191,12 +198,27 @@ function hasFragment(id) {
 
 function getDifficultyConfig() {
   if (state.save.settings.difficulty === "narrative") {
-    return { hpMult: 0.7, damageMult: 0.65, sanityDrainMult: 0.7, rewardMult: 0.9 };
+    return {
+      hpMult: state.runFlags.ngPlus ? 0.85 : 0.7,
+      damageMult: state.runFlags.ngPlus ? 0.8 : 0.65,
+      sanityDrainMult: state.runFlags.ngPlus ? 0.9 : 0.7,
+      rewardMult: state.runFlags.ngPlus ? 1.05 : 0.9,
+    };
   }
   if (state.save.settings.difficulty === "abyss") {
-    return { hpMult: 1.35, damageMult: 1.35, sanityDrainMult: 1.35, rewardMult: 1.35 };
+    return {
+      hpMult: state.runFlags.ngPlus ? 1.55 : 1.35,
+      damageMult: state.runFlags.ngPlus ? 1.55 : 1.35,
+      sanityDrainMult: state.runFlags.ngPlus ? 1.55 : 1.35,
+      rewardMult: state.runFlags.ngPlus ? 1.6 : 1.35,
+    };
   }
-  return { hpMult: 1, damageMult: 1, sanityDrainMult: 1, rewardMult: 1 };
+  return {
+    hpMult: state.runFlags.ngPlus ? 1.2 : 1,
+    damageMult: state.runFlags.ngPlus ? 1.2 : 1,
+    sanityDrainMult: state.runFlags.ngPlus ? 1.2 : 1,
+    rewardMult: state.runFlags.ngPlus ? 1.25 : 1,
+  };
 }
 
 function getColorPreset() {
@@ -240,7 +262,7 @@ function buildDungeon(seedText) {
   const mutatorPool = ["none", "frenzy", "brittle", "static", "blackout"];
   for (let layer = 1; layer <= state.maxLayers; layer += 1) {
     state.layers.push(generateLayerPlan(layer));
-    if (state.save.settings.corruptedMode) {
+    if (state.save.settings.corruptedMode || state.runFlags.ngPlus) {
       const weights = [0.1, 0.25, 0.25, 0.25, 0.15];
       const roll = state.rng();
       let acc = 0;
@@ -283,6 +305,18 @@ function getResonanceTier() {
   return { level: 1, name: "Base Clinic" };
 }
 
+function getStoryAct() {
+  const res = state.save.clinic.resonance;
+  const ng = state.save.progression.ngPlusWins;
+  if (res >= 10 && ng >= 1) return { id: 3, name: "Act 3 - Renegade or Accomplice" };
+  if (res >= 5) return { id: 2, name: "Act 2 - Investigator" };
+  return { id: 1, name: "Act 1 - Employee" };
+}
+
+function canStartNgPlus() {
+  return state.save.clinic.resonance >= 12;
+}
+
 function getNpcLine(npcId) {
   const trust = state.save.clinic.npcTrust[npcId] || 0;
   const res = getResonanceTier().level;
@@ -306,7 +340,7 @@ function getNpcLine(npcId) {
   return "...";
 }
 
-function resetRunFor(patient, customSeed) {
+function resetRunFor(patient, customSeed, useNgPlus = false) {
   state.mode = "run";
   state.patient = patient;
   state.layerIndex = 0;
@@ -330,6 +364,7 @@ function resetRunFor(patient, customSeed) {
     awaitingRoomResolution: false,
     skipRewardsThisRoom: false,
     challengeWavesLeft: 0,
+    ngPlus: useNgPlus && canStartNgPlus(),
   };
   state.morality = {
     empathy: 0,
@@ -354,6 +389,13 @@ function resetRunFor(patient, customSeed) {
 
   const generatedSeed = customSeed?.trim() || `${patient.id}-${Date.now().toString(36).slice(-6)}`;
   buildDungeon(generatedSeed);
+  if (state.runFlags.ngPlus) {
+    state.save.progression.ngPlusLevel = Math.max(1, state.save.progression.ngPlusLevel);
+    // NG+ starts with one random passive fragment to accelerate build identity.
+    const passivePool = fragments.filter((f) => f.type === "passive");
+    if (passivePool.length > 0) state.fragments.push(rpick(passivePool));
+    applyPassives();
+  }
   enterCurrentRoom();
   closeOverlay();
 }
@@ -776,6 +818,10 @@ function finishRun(success) {
 
   if (success) {
     state.save.clinic.resonance += 1;
+    if (state.runFlags.ngPlus) {
+      state.save.progression.ngPlusWins += 1;
+      state.save.progression.ngPlusLevel = Math.max(1, state.save.progression.ngPlusLevel);
+    }
     const locked = patients.find((p) => !state.save.unlockedPatients.includes(p.id));
     if (locked) state.save.unlockedPatients.push(locked.id);
   } else {
@@ -855,6 +901,8 @@ function talkToNpc(npcId) {
 
 function renderHubHtml(message = "") {
   const resonance = getResonanceTier();
+  const storyAct = getStoryAct();
+  const ngUnlocked = canStartNgPlus();
   const patientCards = getAvailablePatients()
     .map(
       (p) => `
@@ -879,6 +927,11 @@ function renderHubHtml(message = "") {
     <div class="grid">${patientCards}</div>
     <h3>Run Seed</h3>
     <input id="seed-input" placeholder="optional seed (shareable)" value="" />
+    <h3>Run Mode</h3>
+    <div class="grid">
+      <button data-runmode="standard">Standard ${state.save.settings.runMode === "standard" ? "(active)" : ""}</button>
+      <button data-runmode="ngplus" ${ngUnlocked ? "" : "disabled"}>New Game+ ${state.save.settings.runMode === "ngplus" ? "(active)" : ""}</button>
+    </div>
     <h3>Permanent Upgrades</h3>
     <div class="grid">
       <button data-upgrade="hp">HP Lv ${state.save.upgrades.hp} (cost ${upgradeCost("hp")})</button>
@@ -901,6 +954,8 @@ function renderHubHtml(message = "") {
     </div>
     <h3>Clinic Ressonance</h3>
     <p>Resonance ${state.save.clinic.resonance} - ${resonance.name}</p>
+    <p>Story: ${storyAct.name}</p>
+    <p>NG+ Wins: ${state.save.progression.ngPlusWins} ${ngUnlocked ? "(unlocked)" : "(unlock at resonance 12)"}</p>
     <div class="grid">
       <button data-npc="lyra">Talk: Lyra (Analyst)</button>
       <button data-npc="ordan">Talk: Ordan (Security)</button>
@@ -922,7 +977,8 @@ function openHub(show = true, message = "") {
       const patient = getPatientById(btn.getAttribute("data-patient"));
       const seedInput = overlay.querySelector("#seed-input");
       const seed = seedInput?.value || "";
-      if (patient) resetRunFor(patient, seed);
+      const useNgPlus = state.save.settings.runMode === "ngplus" && canStartNgPlus();
+      if (patient) resetRunFor(patient, seed, useNgPlus);
     });
   });
   overlay.querySelectorAll("[data-upgrade]").forEach((btn) => {
@@ -936,6 +992,13 @@ function openHub(show = true, message = "") {
   });
   overlay.querySelectorAll("[data-color]").forEach((btn) => {
     btn.addEventListener("click", () => updateSettings({ colorMode: btn.getAttribute("data-color") }));
+  });
+  overlay.querySelectorAll("[data-runmode]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const mode = btn.getAttribute("data-runmode");
+      if (mode === "ngplus" && !canStartNgPlus()) return;
+      updateSettings({ runMode: mode });
+    });
   });
   overlay.querySelectorAll("[data-corrupted]").forEach((btn) => {
     btn.addEventListener("click", () => updateSettings({ corruptedMode: btn.getAttribute("data-corrupted") === "on" }));
@@ -1197,6 +1260,7 @@ function renderHud() {
     <span>Sanity <strong class="${state.player.sanity < state.player.maxSanity * 0.3 ? "stat-danger" : "stat-ok"}">${Math.round(state.player.sanity)}/${Math.round(state.player.maxSanity)}</strong> (${insanity})</span>
     <span>Seed ${state.runSeed}</span>
     <span>Mutator ${mutatorLabel}</span>
+    <span>Mode ${state.runFlags.ngPlus ? "NG+" : "Standard"}</span>
   `;
 
   panel.innerHTML = `
@@ -1206,6 +1270,7 @@ function renderHud() {
     Fragments: ${state.fragments.map((f) => f.name).join(", ") || "none"}<br />
     Relics: ${state.relics.map((r) => r.name).join(", ") || "none"}<br />
     Synergies: ${state.synergies.join(" | ") || "none"}<br />
+    Run mode: ${state.runFlags.ngPlus ? "New Game+" : "Standard"}<br />
     Morality: E/P ${state.morality.empathy}/${state.morality.preservation}, Eff/Ext ${state.morality.efficiency}/${state.morality.extraction}, Loy/Reb ${state.morality.loyalty}/${state.morality.rebellion}
     <br />Corrupted Mode: ${state.save.settings.corruptedMode ? "ON" : "OFF"}
     ${state.flags.showRoomForecast ? `<br />Forecast: elite chance ${(12 + (state.layerIndex + 1) * 5).toFixed(0)}%` : ""}
