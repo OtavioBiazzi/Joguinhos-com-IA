@@ -22,15 +22,28 @@ const roomTypeNames = {
   bossFight: "Boss",
 };
 
+const mutatorNames = {
+  none: "None",
+  frenzy: "Frenzy Pulse",
+  brittle: "Brittle Mind",
+  static: "Static Noise",
+  blackout: "Blackout",
+};
+
 const baseSave = {
   echoes: 0,
   unlockedPatients: ["mara", "tomas", "luna"],
   upgrades: { hp: 0, sanity: 0, dodge: 0 },
   journal: [],
+  clinic: {
+    resonance: 0,
+    npcTrust: { lyra: 0, ordan: 0, mira: 0 },
+  },
   settings: {
     speed: 1,
     difficulty: "normal",
     colorMode: "default",
+    corruptedMode: false,
   },
 };
 
@@ -41,6 +54,7 @@ const state = {
   runSeed: "",
   patient: null,
   layers: [],
+  layerMutators: [],
   layerIndex: 0,
   roomIndex: 0,
   currentRoom: null,
@@ -103,6 +117,11 @@ function loadSave() {
       ...baseSave,
       ...parsed,
       upgrades: { ...baseSave.upgrades, ...(parsed.upgrades || {}) },
+      clinic: {
+        ...baseSave.clinic,
+        ...(parsed.clinic || {}),
+        npcTrust: { ...baseSave.clinic.npcTrust, ...((parsed.clinic || {}).npcTrust || {}) },
+      },
       settings: { ...baseSave.settings, ...(parsed.settings || {}) },
     };
   } catch {
@@ -216,9 +235,75 @@ function buildDungeon(seedText) {
   state.runSeed = seedText;
   state.rng = createRng(seedText);
   state.layers = [];
+  state.layerMutators = [];
+
+  const mutatorPool = ["none", "frenzy", "brittle", "static", "blackout"];
   for (let layer = 1; layer <= state.maxLayers; layer += 1) {
     state.layers.push(generateLayerPlan(layer));
+    if (state.save.settings.corruptedMode) {
+      const weights = [0.1, 0.25, 0.25, 0.25, 0.15];
+      const roll = state.rng();
+      let acc = 0;
+      let chosen = "none";
+      for (let i = 0; i < weights.length; i += 1) {
+        acc += weights[i];
+        if (roll <= acc) {
+          chosen = mutatorPool[i];
+          break;
+        }
+      }
+      state.layerMutators.push(chosen);
+    } else {
+      state.layerMutators.push("none");
+    }
   }
+}
+
+function getLayerMutator() {
+  return state.layerMutators[state.layerIndex] || "none";
+}
+
+function getEnemySpeedMult() {
+  return getLayerMutator() === "frenzy" ? 1.25 : 1;
+}
+
+function getSanityDrainBonus() {
+  return getLayerMutator() === "static" ? 1.8 : 0;
+}
+
+function getContactDamageMult() {
+  return getLayerMutator() === "brittle" ? 1.35 : 1;
+}
+
+function getResonanceTier() {
+  const r = state.save.clinic.resonance;
+  if (r >= 12) return { level: 4, name: "Inner Archive" };
+  if (r >= 8) return { level: 3, name: "Lower Wing" };
+  if (r >= 4) return { level: 2, name: "Recovery Hall" };
+  return { level: 1, name: "Base Clinic" };
+}
+
+function getNpcLine(npcId) {
+  const trust = state.save.clinic.npcTrust[npcId] || 0;
+  const res = getResonanceTier().level;
+  const moralityShift = state.morality.rebellion - state.morality.loyalty;
+
+  if (npcId === "lyra") {
+    if (trust >= 4) return "I rerouted a file for you. NEXMIND is tracking extraction anomalies.";
+    if (res >= 3) return "Patients from Wing C mention the same symbol in their dreams.";
+    return "You should listen to what memories are refusing to show you.";
+  }
+  if (npcId === "ordan") {
+    if (moralityShift > 1) return "Careful. Rebels disappear fast in this clinic.";
+    if (trust >= 4) return "I can keep security logs off your back... for now.";
+    return "Protocol keeps people alive. Deviations do not.";
+  }
+  if (npcId === "mira") {
+    if (trust >= 4) return "Your own chart has been opened from a sealed terminal.";
+    if (res >= 2) return "Some comas are induced, not accidental.";
+    return "Every patient hears the same whisper near the abyss layer.";
+  }
+  return "...";
 }
 
 function resetRunFor(patient, customSeed) {
@@ -690,8 +775,11 @@ function finishRun(success) {
   state.save.journal = state.save.journal.slice(0, 20);
 
   if (success) {
+    state.save.clinic.resonance += 1;
     const locked = patients.find((p) => !state.save.unlockedPatients.includes(p.id));
     if (locked) state.save.unlockedPatients.push(locked.id);
+  } else {
+    state.save.clinic.resonance = Math.max(0, state.save.clinic.resonance - 1);
   }
 
   saveGame();
@@ -753,7 +841,20 @@ function updateSettings(partial) {
   openHub(true, "Settings updated.");
 }
 
+function talkToNpc(npcId) {
+  const line = getNpcLine(npcId);
+  state.save.clinic.npcTrust[npcId] = (state.save.clinic.npcTrust[npcId] || 0) + 1;
+  saveGame();
+  openOverlay(`
+    <h2>Clinic Dialogue</h2>
+    <p>${line}</p>
+    <button id="npc-back">Back to clinic</button>
+  `);
+  overlay.querySelector("#npc-back").addEventListener("click", () => openHub(true, "NPC log updated."));
+}
+
 function renderHubHtml(message = "") {
+  const resonance = getResonanceTier();
   const patientCards = getAvailablePatients()
     .map(
       (p) => `
@@ -795,6 +896,15 @@ function renderHubHtml(message = "") {
       <button data-color="default">Default Palette ${state.save.settings.colorMode === "default" ? "(active)" : ""}</button>
       <button data-color="deuteranopia">Deuteranopia ${state.save.settings.colorMode === "deuteranopia" ? "(active)" : ""}</button>
       <button data-color="protanopia">Protanopia ${state.save.settings.colorMode === "protanopia" ? "(active)" : ""}</button>
+      <button data-corrupted="on">Arquivo Corrompido ${state.save.settings.corruptedMode ? "(active)" : ""}</button>
+      <button data-corrupted="off">Modo Padrao ${!state.save.settings.corruptedMode ? "(active)" : ""}</button>
+    </div>
+    <h3>Clinic Ressonance</h3>
+    <p>Resonance ${state.save.clinic.resonance} - ${resonance.name}</p>
+    <div class="grid">
+      <button data-npc="lyra">Talk: Lyra (Analyst)</button>
+      <button data-npc="ordan">Talk: Ordan (Security)</button>
+      <button data-npc="mira">Talk: Mira (Nurse)</button>
     </div>
     <h3>Soul Diver Journal</h3>
     <ul>${journal || "<li>No entries yet.</li>"}</ul>
@@ -826,6 +936,12 @@ function openHub(show = true, message = "") {
   });
   overlay.querySelectorAll("[data-color]").forEach((btn) => {
     btn.addEventListener("click", () => updateSettings({ colorMode: btn.getAttribute("data-color") }));
+  });
+  overlay.querySelectorAll("[data-corrupted]").forEach((btn) => {
+    btn.addEventListener("click", () => updateSettings({ corruptedMode: btn.getAttribute("data-corrupted") === "on" }));
+  });
+  overlay.querySelectorAll("[data-npc]").forEach((btn) => {
+    btn.addEventListener("click", () => talkToNpc(btn.getAttribute("data-npc")));
   });
 }
 
@@ -863,16 +979,18 @@ function updateEnemy(enemy, dt) {
   const ey = state.player.y - enemy.y;
   const em = Math.hypot(ex, ey) || 1;
 
+  const speedMult = getEnemySpeedMult();
+
   if (enemy.archetype === "echo") {
-    enemy.x += (ex / em) * enemy.speed * dt;
-    enemy.y += (ey / em) * enemy.speed * dt;
+    enemy.x += (ex / em) * enemy.speed * speedMult * dt;
+    enemy.y += (ey / em) * enemy.speed * speedMult * dt;
   }
 
   if (enemy.archetype === "guardian") {
     enemy.dashCd -= dt;
     const moveSpeed = enemy.dashCd <= 0 ? enemy.speed * 2.2 : enemy.speed;
-    enemy.x += (ex / em) * moveSpeed * dt;
-    enemy.y += (ey / em) * moveSpeed * dt;
+    enemy.x += (ex / em) * moveSpeed * speedMult * dt;
+    enemy.y += (ey / em) * moveSpeed * speedMult * dt;
     if (enemy.dashCd <= -0.25) enemy.dashCd = rrand(1.2, 2.2);
   }
 
@@ -883,8 +1001,8 @@ function updateEnemy(enemy, dt) {
       enemy.y = clamp(state.player.y + rrand(-120, 120), 24, canvas.height - 24);
       enemy.blinkCd = rrand(1.2, 2.3);
     }
-    enemy.x += (state.player.vx * 0.45 + ex * 0.25) * dt;
-    enemy.y += (state.player.vy * 0.45 + ey * 0.25) * dt;
+    enemy.x += (state.player.vx * 0.45 + ex * 0.25) * speedMult * dt;
+    enemy.y += (state.player.vy * 0.45 + ey * 0.25) * speedMult * dt;
   }
 
   if (enemy.archetype === "archive") {
@@ -893,22 +1011,22 @@ function updateEnemy(enemy, dt) {
       enemy.visible = !enemy.visible;
       enemy.blinkCd = rrand(0.8, 1.6);
     }
-    enemy.x += (ex / em) * enemy.speed * dt;
-    enemy.y += (ey / em) * enemy.speed * dt;
+    enemy.x += (ex / em) * enemy.speed * speedMult * dt;
+    enemy.y += (ey / em) * enemy.speed * speedMult * dt;
   }
 
   if (enemy.archetype === "boss") {
     enemy.dashCd -= dt;
     const moveSpeed = enemy.dashCd < 0 ? enemy.speed * 2.5 : enemy.speed;
-    enemy.x += (ex / em) * moveSpeed * dt;
-    enemy.y += (ey / em) * moveSpeed * dt;
+    enemy.x += (ex / em) * moveSpeed * speedMult * dt;
+    enemy.y += (ey / em) * moveSpeed * speedMult * dt;
     if (enemy.dashCd < -0.4) enemy.dashCd = 1.5;
   }
 
   const canHit = enemy.archetype !== "archive" || enemy.visible || state.runFlags.revealTimer > 0 || state.flags.revealInvisible;
   const touch = Math.hypot(enemy.x - state.player.x, enemy.y - state.player.y) < enemy.r + state.player.r;
   if (canHit && touch && state.player.invulnTimer <= 0) {
-    state.player.hp -= enemy.damage * state.stats.contactDamageMult * dt;
+    state.player.hp -= enemy.damage * state.stats.contactDamageMult * getContactDamageMult() * dt;
     state.player.sanity -= enemy.damage * 0.35 * dt;
   }
 }
@@ -946,7 +1064,7 @@ function update(dt) {
   state.player.facing = Math.atan2(pointer.y - state.player.y, pointer.x - state.player.x);
 
   const inCorruptedRoom = state.currentRoom?.type === "corrupted";
-  const sanityDrain = (2.5 + state.enemies.length * 0.03 + (inCorruptedRoom ? 2.3 : 0)) * diff.sanityDrainMult;
+  const sanityDrain = (2.5 + state.enemies.length * 0.03 + (inCorruptedRoom ? 2.3 : 0) + getSanityDrainBonus()) * diff.sanityDrainMult;
   state.player.sanity = clamp(state.player.sanity - sanityDrain * dt, 0, state.player.maxSanity);
   if (state.player.sanity <= 0) state.player.hp -= dt * 6;
 
@@ -1000,6 +1118,11 @@ function draw() {
   const sy = shake ? rrand(-shake, shake) : 0;
   ctx.save();
   ctx.translate(sx, sy);
+
+  if (getLayerMutator() === "blackout" && state.rng() < 0.32) {
+    ctx.fillStyle = "rgba(0,0,0,0.22)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
 
   for (let i = 0; i < 16; i += 1) {
     ctx.fillStyle = `hsla(${hue + i * 2} 50% 35% / 0.15)`;
@@ -1063,6 +1186,7 @@ function renderHud() {
   const a2 = actives[1]?.name || "-";
   const insanity = state.player.sanity <= 0 ? "<span class='stat-danger'>COLLAPSE</span>" : "stable";
   const roomLabel = roomTypeNames[state.currentRoom?.type] || "Unknown";
+  const mutatorLabel = mutatorNames[getLayerMutator()] || mutatorNames.none;
   const roomInLayer = state.roomIndex + 1;
   const layerTotal = currentLayerRooms().length;
 
@@ -1072,6 +1196,7 @@ function renderHud() {
     <span>HP <strong class="${state.player.hp < state.player.maxHp * 0.35 ? "stat-danger" : ""}">${Math.round(state.player.hp)}/${Math.round(state.player.maxHp)}</strong></span>
     <span>Sanity <strong class="${state.player.sanity < state.player.maxSanity * 0.3 ? "stat-danger" : "stat-ok"}">${Math.round(state.player.sanity)}/${Math.round(state.player.maxSanity)}</strong> (${insanity})</span>
     <span>Seed ${state.runSeed}</span>
+    <span>Mutator ${mutatorLabel}</span>
   `;
 
   panel.innerHTML = `
@@ -1082,6 +1207,7 @@ function renderHud() {
     Relics: ${state.relics.map((r) => r.name).join(", ") || "none"}<br />
     Synergies: ${state.synergies.join(" | ") || "none"}<br />
     Morality: E/P ${state.morality.empathy}/${state.morality.preservation}, Eff/Ext ${state.morality.efficiency}/${state.morality.extraction}, Loy/Reb ${state.morality.loyalty}/${state.morality.rebellion}
+    <br />Corrupted Mode: ${state.save.settings.corruptedMode ? "ON" : "OFF"}
     ${state.flags.showRoomForecast ? `<br />Forecast: elite chance ${(12 + (state.layerIndex + 1) * 5).toFixed(0)}%` : ""}
     ${state.currentRoom?.type === "challenge" ? `<br />Challenge waves left: ${state.runFlags.challengeWavesLeft}` : ""}
   `;
