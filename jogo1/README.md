@@ -17,6 +17,8 @@ This folder contains a playable prototype inspired by the game design document f
 - Sanity system with mental collapse pressure
 - Boss resolution via dialog choice (pacify vs extraction)
 - Permanent progression between runs (Echoes + upgrades)
+- Clinic Ressonance progression with NPC trust dialogues
+- Optional Arquivo Corrompido mode with layer mutators
 - Accessibility settings (speed, difficulty presets, colorblind palettes)
 - Per-patient ending classification based on moral axes
 
@@ -48,6 +50,8 @@ Option 2 (Python):
 - Corrupted rooms with extra sanity pressure
 - Shortcut portals to skip layers with reward tradeoff
 - Narrative / Normal / Abyss difficulty scaling
+- Clinic NPC conversations (Lyra, Ordan, Mira)
+- Corrupted mutators per layer (Frenzy, Brittle, Static, Blackout)
 
 ## Project Layout
 

@@ -47,3 +47,18 @@ Implemented:
 - Expanded roster to 10 patients with unique theme sets
 - Added ending classifier per patient run based on hidden moral vectors
 - Journal now stores more meaningful patient outcomes
+
+## 2026-04-19 - Clinic Meta and Corrupted Mode
+
+Implemented:
+- Clinic resonance meter that evolves with successful dives
+- NPC dialogue interactions with trust progression:
+	- Lyra (analyst)
+	- Ordan (security)
+	- Mira (nurse)
+- Arquivo Corrompido toggle in hub settings
+- Layer mutators in corrupted mode:
+	- Frenzy Pulse (faster enemies)
+	- Brittle Mind (higher contact damage)
+	- Static Noise (extra sanity drain)
+	- Blackout (visibility disturbance)
