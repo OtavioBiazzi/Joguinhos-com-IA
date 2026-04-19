@@ -661,11 +661,25 @@ function rewardAfterCombat(callback) {
   runSeq(0);
 }
 
+function evaluatePatientOutcome(success) {
+  if (!success) return "morte";
+
+  const empathyVector = state.morality.empathy + state.morality.preservation;
+  const extractionVector = state.morality.extraction + state.morality.efficiency;
+  const rebellionBonus = state.morality.rebellion > state.morality.loyalty ? 1 : 0;
+  const score = empathyVector - extractionVector + rebellionBonus;
+
+  if (score >= 3) return "recuperacao total";
+  if (score >= 1) return "recuperacao parcial";
+  if (score >= -1) return "estado vegetal";
+  return "morte";
+}
+
 function finishRun(success) {
   state.mode = "hub";
   const reward = success ? 25 + state.layerIndex * 10 : 10 + state.layerIndex * 4;
   state.save.echoes += Math.floor(reward * getDifficultyConfig().rewardMult);
-  const patientState = success ? "rescued" : "lost";
+  const patientState = evaluatePatientOutcome(success);
   state.save.journal.unshift({
     at: new Date().toISOString(),
     patient: state.patient?.name || "Unknown",
