@@ -40,3 +40,10 @@ Implemented:
 	- speed: 0.5x / 0.75x / 1x
 	- difficulty: narrative / normal / abyss
 	- color palettes including colorblind presets
+
+## 2026-04-19 - Narrative Progression Pass
+
+Implemented:
+- Expanded roster to 10 patients with unique theme sets
+- Added ending classifier per patient run based on hidden moral vectors
+- Journal now stores more meaningful patient outcomes

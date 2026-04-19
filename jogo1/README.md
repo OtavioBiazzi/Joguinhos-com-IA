@@ -6,6 +6,7 @@ This folder contains a playable prototype inspired by the game design document f
 
 - Top-down real-time action loop
 - Hub (NEXMIND Clinic) with patient selection
+- 10 patient profiles with unique themes
 - Seeded dungeon generation across 4 layers
 - Special room types (memory, choice, merchant, challenge, corrupted, shortcut)
 - Memory fragments (active and passive build system)
@@ -17,6 +18,7 @@ This folder contains a playable prototype inspired by the game design document f
 - Boss resolution via dialog choice (pacify vs extraction)
 - Permanent progression between runs (Echoes + upgrades)
 - Accessibility settings (speed, difficulty presets, colorblind palettes)
+- Per-patient ending classification based on moral axes
 
 ## Run It
 
