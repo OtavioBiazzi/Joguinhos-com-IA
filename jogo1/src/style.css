@@ -103,6 +103,21 @@ button:hover {
   background: #184570;
 }
 
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+input {
+  width: 100%;
+  border: 1px solid #54789b;
+  border-radius: 8px;
+  background: #0e2740;
+  color: var(--ink);
+  padding: 8px 10px;
+  margin-bottom: 6px;
+}
+
 .badge {
   padding: 2px 8px;
   border-radius: 999px;

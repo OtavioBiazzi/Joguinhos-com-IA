@@ -112,6 +112,16 @@ export const fragments = [
       state.flags.showEnemyHp = true;
     },
   },
+  {
+    id: "mnemonic-scan",
+    name: "Mnemonic Scan",
+    type: "active",
+    desc: "Reveal hidden enemies and weaken them briefly.",
+    onUse: (state) => {
+      state.runFlags.revealTimer = 4.5;
+      state.effects.push({ type: "ring", time: 0.4, radius: 160, damage: 6, color: "#9df5d0" });
+    },
+  },
 ];
 
 export const relics = [
@@ -140,6 +150,14 @@ export const relics = [
       state.player.sanity += 15;
       state.player.maxHp = Math.max(35, state.player.maxHp - 10);
       state.player.hp = Math.min(state.player.maxHp, state.player.hp);
+    },
+  },
+  {
+    id: "needle-clock",
+    name: "Needle Clock",
+    desc: "+12% base attack speed.",
+    apply: (state) => {
+      state.stats.attackCdMult *= 0.88;
     },
   },
 ];
